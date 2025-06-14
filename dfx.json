@@ -1,0 +1,26 @@
+{
+  "canisters": {
+    "dgit-repo-backend": {
+      "main": "src/dgit-repo-backend/main.mo",
+      "type": "motoko"
+    },
+    "dgit-repo-frontend": {
+      "dependencies": [
+        "dgit-repo-backend"
+      ],
+      "source": [
+        "src/dgit-repo-frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "dgit-repo-frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
