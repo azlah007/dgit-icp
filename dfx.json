@@ -1,7 +1,7 @@
 {
   "canisters": {
     "dgit-repo-backend": {
-      "main": "src/dgit-repo-backend/main.mo",
+      "main": "src/dgit-repo/main.mo",
       "type": "motoko"
     },
     "dgit-repo-frontend": {
