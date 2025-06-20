@@ -18,8 +18,13 @@ actor {
 
   type Ref = Text;
 
+  // Your stable variables (the important data you want to keep)
   stable var repoName : Text = "";
   stable var owner : Text = "";
+
+  // Temporary holders used during upgrade migration
+  stable var savedRepoName : ?Text = null;
+  stable var savedOwner : ?Text = null;
 
   var branches : HashMap.HashMap<Text, Ref> = HashMap.HashMap<Text, Ref>(10, Text.equal, Text.hash);
   var commits : HashMap.HashMap<Text, Commit> = HashMap.HashMap<Text, Commit>(10, Text.equal, Text.hash);
@@ -106,71 +111,89 @@ actor {
   };
 
   public shared func mergeBranch(
-  targetBranch: Text,
-  sourceBranch: Text,
-  author: Text,
-  message: Text
-): async Text {
-  let targetCommitHashOpt = branches.get(targetBranch);
-  let sourceCommitHashOpt = branches.get(sourceBranch);
+    targetBranch: Text,
+    sourceBranch: Text,
+    author: Text,
+    message: Text
+  ): async Text {
+    let targetCommitHashOpt = branches.get(targetBranch);
+    let sourceCommitHashOpt = branches.get(sourceBranch);
 
-  if (targetCommitHashOpt == null or sourceCommitHashOpt == null) {
-    return "Error: One of the branches does not exist.";
+    if (targetCommitHashOpt == null or sourceCommitHashOpt == null) {
+      return "Error: One of the branches does not exist.";
+    };
+
+    let targetCommitHash = switch (targetCommitHashOpt) {
+      case (?hash) hash;
+      case null return "Error: Unexpected null target commit hash.";
+    };
+
+    let sourceCommitHash = switch (sourceCommitHashOpt) {
+      case (?hash) hash;
+      case null return "Error: Unexpected null source commit hash.";
+    };
+
+    let targetCommit = switch (commits.get(targetCommitHash)) {
+      case (?c) c;
+      case null return "Error: Target commit not found.";
+    };
+
+    let sourceCommit = switch (commits.get(sourceCommitHash)) {
+      case (?c) c;
+      case null return "Error: Source commit not found.";
+    };
+
+    let mergedTree: Tree = HashMap.HashMap<Text, Blob>(10, Text.equal, Text.hash);
+
+    // Add all files from target
+    for ((k, v) in targetCommit.tree.entries()) {
+      mergedTree.put(k, v);
+    };
+
+    // Overwrite/add files from source
+    for ((k, v) in sourceCommit.tree.entries()) {
+      mergedTree.put(k, v);
+    };
+
+    let newCommitHash = generateCommitHash(message);
+
+    let newCommit: Commit = {
+      tree = mergedTree;
+      message = message;
+      parent = ?targetCommitHash;
+      author = author;
+      timestamp = Time.now();
+    };
+
+    commits.put(newCommitHash, newCommit);
+    branches.put(targetBranch, newCommitHash);
+
+    return "Branches merged successfully. New commit hash: " # newCommitHash;
   };
-
-  let targetCommitHash = switch (targetCommitHashOpt) {
-    case (?hash) hash;
-    case null return "Error: Unexpected null target commit hash.";
-  };
-
-  let sourceCommitHash = switch (sourceCommitHashOpt) {
-    case (?hash) hash;
-    case null return "Error: Unexpected null source commit hash.";
-  };
-
-  let targetCommit = switch (commits.get(targetCommitHash)) {
-    case (?c) c;
-    case null return "Error: Target commit not found.";
-  };
-
-  let sourceCommit = switch (commits.get(sourceCommitHash)) {
-    case (?c) c;
-    case null return "Error: Source commit not found.";
-  };
-
-  let mergedTree: Tree = HashMap.HashMap<Text, Blob>(10, Text.equal, Text.hash);
-
-  // Add all files from target
-  for ((k, v) in targetCommit.tree.entries()) {
-    mergedTree.put(k, v);
-  };
-
-  // Overwrite/add files from source
-  for ((k, v) in sourceCommit.tree.entries()) {
-    mergedTree.put(k, v);
-  };
-
-  let newCommitHash = generateCommitHash(message);
-
-  let newCommit: Commit = {
-    tree = mergedTree;
-    message = message;
-    parent = ?targetCommitHash;
-    author = author;
-    timestamp = Time.now();
-  };
-
-  commits.put(newCommitHash, newCommit);
-  branches.put(targetBranch, newCommitHash);
-
-  return "Branches merged successfully. New commit hash: " # newCommitHash;
-};
-
 
   public shared func forkRepo(
     newRepoName: Text,
     newOwner: Text
   ): async Text {
+    // Simplified: just return a message until multi-repo support is added
     return "Forking is not implemented yet. Requires multi-repo management.";
+  };
+
+  // === Stable migration functions ===
+
+  system func preupgrade() : () {
+    savedRepoName := ?repoName;
+    savedOwner := ?owner;
+  };
+
+  system func postupgrade() : () {
+    switch savedRepoName {
+      case (?name) repoName := name;
+      case null ();
+    };
+    switch savedOwner {
+      case (?own) owner := own;
+      case null ();
+    };
   };
 };
