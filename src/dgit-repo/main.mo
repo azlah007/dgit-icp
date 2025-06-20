@@ -2,6 +2,7 @@ import HashMap "mo:base/HashMap";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
 import Int "mo:base/Int";
+import Array "mo:base/Array";
 
 actor {
   type Blob = Text;
@@ -35,32 +36,34 @@ actor {
   };
 
   public shared func commitCode(
-    branch: Text,
-    fileList: [ (Text, Text) ],
-    message: Text,
-    author: Text
-  ): async Text {
-    let commitHash = generateCommitHash(message);
-    let parentCommit: ?Text = branches.get(branch);
+  branch: Text,
+  fileList: [(Text, Text)],
+  message: Text,
+  author: Text
+): async Text {
+  let commitHash = generateCommitHash(message);
+  let parentCommit: ?Text = branches.get(branch);
 
-    let files : Tree = HashMap.HashMap<Text, Blob>(10, Text.equal, Text.hash);
-    for ((filename, content) in fileList) {
-      files.put(filename, content);
-    };
-
-    let newCommit: Commit = {
-      tree = files;
-      message = message;
-      parent = parentCommit;
-      author = author;
-      timestamp = Time.now();
-    };
-
-    commits.put(commitHash, newCommit);
-    branches.put(branch, commitHash);
-
-    return "Commit successful with hash: " # commitHash;
+  let files : Tree = HashMap.HashMap<Text, Blob>(10, Text.equal, Text.hash);
+  for (i in fileList.vals()) {
+    let (filename, content) = i;
+    files.put(filename, content);
   };
+
+  let newCommit: Commit = {
+    tree = files;
+    message = message;
+    parent = parentCommit;
+    author = author;
+    timestamp = Time.now();
+  };
+
+  commits.put(commitHash, newCommit);
+  branches.put(branch, commitHash);
+
+  return "Commit successful with hash: " # commitHash;
+};
+
 
   public shared func createBranch(newBranch: Text, fromCommitHash: Text): async Text {
     let commitOption = commits.get(fromCommitHash);
@@ -76,7 +79,7 @@ actor {
   };
 
   type CommitSerializable = {
-    tree: [ (Text, Blob) ];
+    tree: [(Text, Blob)];
     message: Text;
     parent: ?Text;
     author: Text;
@@ -84,9 +87,9 @@ actor {
   };
 
   func commitToSerializable(c: Commit): CommitSerializable {
-    var arr: [ (Text, Blob) ] = [];
-    for ((key, val) in c.tree.entries()) {
-      arr := arr # [(key, val): [(Text, Blob)]];
+    var arr: [(Text, Blob)] = [];
+    for (entry in c.tree.entries()) {
+      arr := Array.append(arr, [(entry.0, entry.1)]);
     };
     return {
       tree = arr;
@@ -99,8 +102,8 @@ actor {
 
   public query func getCommit(commitHash: Text): async ?CommitSerializable {
     switch (commits.get(commitHash)) {
-      case null { return null; };
-      case (?c) { return ?commitToSerializable(c); };
+      case null { return null };
+      case (?c) { return ?commitToSerializable(c) };
     };
   };
 };
