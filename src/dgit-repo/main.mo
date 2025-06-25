@@ -285,6 +285,70 @@ actor {
     }
   };
 
+  public shared func createBranch(repoName: Text, newBranch: Text, fromBranch: Text, author: Text): async Text {
+    switch (repos.get(repoName)) {
+      case null "Error: Repository not found.";
+      case (?repo) {
+        if (not canCommit(repo, author)) return "Error: No permission.";
+
+        switch (repo.branches.get(fromBranch)) {
+          case null "Error: Source branch does not exist.";
+          case (?commitHash) {
+            if (Option.isSome(repo.branches.get(newBranch))) {
+              return "Error: Branch '" # newBranch # "' already exists.";
+            };
+
+            repo.branches.put(newBranch, commitHash);
+            "Branch '" # newBranch # "' created from '" # fromBranch # "'.";
+          }
+        }
+      }
+    }
+  };
+
+  public shared func mergeBranches(repoName: Text, sourceBranch: Text, targetBranch: Text, author: Text): async Text {
+    switch (repos.get(repoName)) {
+      case null "Error: Repository not found.";
+      case (?repo) {
+        if (not canCommit(repo, author)) return "Error: No permission.";
+
+        // Get latest commit hash from source and target branches
+        let sourceHashOpt = repo.branches.get(sourceBranch);
+        let targetHashOpt = repo.branches.get(targetBranch);
+
+        if (sourceHashOpt == null or targetHashOpt == null) {
+          return "Error: One or both branches do not exist.";
+        };
+
+        let sourceHash = Option.get(sourceHashOpt, "");
+        let targetHash = Option.get(targetHashOpt, "");
+
+        // For simplicity, use the target branch's latest tree as the tree for the merge commit
+        // More advanced merge logic (conflict detection) can be added later
+        let targetCommitOpt = repo.commits.get(targetHash);
+
+        switch (targetCommitOpt) {
+          case null return "Error: Target commit not found.";
+          case (?targetCommit) {
+            let mergeCommit: Commit = {
+              tree = targetCommit.tree;
+              message = "Merged branch " # sourceBranch # " into " # targetBranch;
+              parent = ?targetHash;
+              author = author;
+              timestamp = Time.now();
+            };
+
+            let mergeHash = generateCommitHash(mergeCommit.message);
+            repo.commits.put(mergeHash, mergeCommit);
+            repo.branches.put(targetBranch, mergeHash);
+
+            "Merge successful. New commit hash: " # mergeHash;
+          }
+        }
+      }
+    }
+  };
+
   // === Upgrade Hooks ===
 
   system func preupgrade() {
@@ -303,5 +367,4 @@ actor {
       repos.put(name, deserializeRepo(serRepo));
     }
   };
-
 };
