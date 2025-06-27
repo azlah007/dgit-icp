@@ -367,4 +367,32 @@ actor {
       repos.put(name, deserializeRepo(serRepo));
     }
   };
+
+  public query func listFiles(repoName: Text): async [Text] {
+  switch (repos.get(repoName)) {
+    case null return [];
+    case (?repo) {
+      var fileNames: [Text] = [];
+      let head = repo.branches.get("master");
+      switch (head) {
+        case null return [];
+        case (?commitHash) {
+          switch (repo.commits.get(commitHash)) {
+            case null return [];
+            case (?commit) {
+              fileNames := Iter.toArray(commit.tree.keys());
+            }
+          }
+        }
+      };
+      fileNames;
+    }
+  }
+  };
+public query func getRepoList(): async [Text] {
+  Iter.toArray(repos.keys());
+};
+
+
+
 };
