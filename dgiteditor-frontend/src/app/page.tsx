@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from "react";
-import Auth from "@/components/Auth";
+import { dgitRepoBackend } from "@/lib/ic/actor";
 import Editor from "@monaco-editor/react";
 import FileTree from "@/components/FileTree";
 
@@ -11,44 +11,31 @@ export default function Home() {
   const [files, setFiles] = useState<string[]>([]);
 
   const repoName = "test-repo";
-  const canisterId = "uxrrr-q7777-77774-qaaaq-cai";
 
-  // Fetch file list on component mount
   useEffect(() => {
     const fetchFiles = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:4943/?canisterId=${canisterId}/listFiles`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify([repoName])  // Motoko expects a tuple-like argument in array form
-        });
-
-        // The response is usually a CBOR or blob, but assuming JSON array for dev
-        const result = await response.json();
-
+        const result = await dgitRepoBackend.listFiles(repoName); // ✅ pass as Text, not [Text]
         if (Array.isArray(result)) {
           setFiles(result);
         } else {
-          console.error("Unexpected response format from listFiles:", result);
-          alert("Failed to load files: unexpected response format.");
+          console.error("Unexpected response from canister:", result);
+          alert("Unexpected response format. Check console.");
         }
       } catch (error) {
-        console.error("Error fetching file list:", error);
-        alert("Failed to fetch file list. Is your canister running?");
+        console.error("Canister call failed:", error);
+        alert("Failed to fetch files from canister.");
       }
     };
 
     fetchFiles();
   }, []);
 
-  // When user selects a file from the sidebar
   const handleFileSelect = (fileName: string) => {
     setSelectedFile(fileName);
-    // TODO: Replace with real content fetched from backend
     setFileContents(`// Contents of ${fileName}`);
   };
 
-  // Commit the current file with the commit message
   const handleCommit = async () => {
     if (!selectedFile) {
       alert("Please select a file to commit.");
@@ -60,7 +47,7 @@ export default function Home() {
     }
 
     try {
-      const response = await fetch(`http://127.0.0.1:4943/?canisterId=${canisterId}/commitCode`, {
+      const response = await fetch("http://127.0.0.1:4943/commitCode?canisterId=uxrrr-q7777-77774-qaaaq-cai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -72,26 +59,22 @@ export default function Home() {
         })
       });
 
-      // Expecting plain text response
       const result = await response.text();
       alert(result);
       setCommitMessage("");
     } catch (error) {
       console.error("Commit failed:", error);
-      alert("Commit failed. Check console for details.");
+      alert("Commit failed. Check the console.");
     }
   };
 
   return (
     <div className="flex h-screen">
-      
-      {/* Sidebar */}
       <div className="w-64 bg-gray-900 text-white p-4">
         <h1 className="text-xl font-bold mb-4">dGIT Editor</h1>
         <FileTree files={files} onFileSelect={handleFileSelect} />
       </div>
 
-      {/* Main Editor Area */}
       <div className="flex-1 bg-gray-100 p-4 flex flex-col">
         <h2 className="text-2xl font-semibold mb-4">
           {selectedFile ? `Editing: ${selectedFile}` : "Select a file to start editing"}
@@ -107,7 +90,6 @@ export default function Home() {
           />
         </div>
 
-        {/* Commit Section */}
         <div className="flex space-x-2">
           <input
             type="text"
