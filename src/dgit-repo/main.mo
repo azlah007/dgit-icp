@@ -5,10 +5,10 @@ import Int "mo:base/Int";
 import Array "mo:base/Array";
 import Iter "mo:base/Iter";
 import Option "mo:base/Option";
+import Bool "mo:base/Bool";
 
 actor {
 
-  // === Types ===
   type Blob = Text;
   type Tree = HashMap.HashMap<Text, Blob>;
   type Ref = Text;
@@ -47,13 +47,8 @@ actor {
     tags: [(Text, Ref)];
   };
 
-  // === Stable Variables ===
   stable var savedRepos: [(Text, RepoSerializable)] = [];
-
-  // === In-memory State ===
   var repos: HashMap.HashMap<Text, Repo> = HashMap.HashMap<Text, Repo>(10, Text.equal, Text.hash);
-
-  // === Utility Functions ===
 
   func generateCommitHash(msg: Text): Text {
     msg # "_" # Int.toText(Time.now())
@@ -69,8 +64,8 @@ actor {
 
   func deserializeCommit(cs: CommitSerializable): Commit {
     let tree = HashMap.HashMap<Text, Blob>(10, Text.equal, Text.hash);
-    for (pair in cs.tree.vals()) {
-      let (k, v) = pair;
+    for (entry in cs.tree.vals()) {
+      let (k, v) = entry;
       tree.put(k, v);
     };
     {
@@ -88,9 +83,8 @@ actor {
     branches = Iter.toArray(repo.branches.entries());
     commits = Array.map<(Text, Commit), (Text, CommitSerializable)>(
       Iter.toArray(repo.commits.entries()),
-      func(entry) {
-        let (k, v) = entry;
-        (k, serializeCommit(v));
+      func((k, v)) : (Text, CommitSerializable) {
+        (k, serializeCommit(v))
       }
     );
     collaborators = Iter.toArray(repo.collaborators.entries());
@@ -99,22 +93,26 @@ actor {
 
   func deserializeRepo(rs: RepoSerializable): Repo {
     let branches = HashMap.HashMap<Text, Ref>(10, Text.equal, Text.hash);
-    for ((k, v) in rs.branches.vals()) {
+    for (entry in rs.branches.vals()) {
+      let (k, v) = entry;
       branches.put(k, v);
     };
 
     let commits = HashMap.HashMap<Text, Commit>(10, Text.equal, Text.hash);
-    for ((k, v) in rs.commits.vals()) {
+    for (entry in rs.commits.vals()) {
+      let (k, v) = entry;
       commits.put(k, deserializeCommit(v));
     };
 
     let collaborators = HashMap.HashMap<Text, Bool>(10, Text.equal, Text.hash);
-    for ((k, v) in rs.collaborators.vals()) {
+    for (entry in rs.collaborators.vals()) {
+      let (k, v) = entry;
       collaborators.put(k, v);
     };
 
     let tags = HashMap.HashMap<Text, Ref>(10, Text.equal, Text.hash);
-    for ((k, v) in rs.tags.vals()) {
+    for (entry in rs.tags.vals()) {
+      let (k, v) = entry;
       tags.put(k, v);
     };
 
@@ -129,46 +127,39 @@ actor {
   };
 
   func canCommit(repo: Repo, user: Text): Bool {
-    if (repo.owner == user) {
-      true;
-    } else {
-      switch (repo.collaborators.get(user)) {
-        case (?true) true;
-        case _ false;
-      }
-    }
+    repo.owner == user or (switch (repo.collaborators.get(user)) { case (?b) b; case null false })
   };
 
-  // === Public Functions ===
-
   public shared func createRepo(name: Text, ownerName: Text): async Text {
-    switch (repos.get(name)) {
-      case null {
-        let newRepo: Repo = {
-          name = name;
-          owner = ownerName;
-          branches = HashMap.HashMap<Text, Ref>(10, Text.equal, Text.hash);
-          commits = HashMap.HashMap<Text, Commit>(10, Text.equal, Text.hash);
-          collaborators = HashMap.HashMap<Text, Bool>(10, Text.equal, Text.hash);
-          tags = HashMap.HashMap<Text, Ref>(10, Text.equal, Text.hash);
-        };
-        newRepo.branches.put("master", "");
-        repos.put(name, newRepo);
-        "Repository created: " # name;
-      };
-      case _ "Error: Repository already exists.";
-    }
+    if (Option.isSome(repos.get(name))) {
+      return "Error: Repository already exists.";
+    };
+    let repo = {
+      name = name;
+      owner = ownerName;
+      branches = HashMap.HashMap<Text, Ref>(10, Text.equal, Text.hash);
+      commits = HashMap.HashMap<Text, Commit>(10, Text.equal, Text.hash);
+      collaborators = HashMap.HashMap<Text, Bool>(10, Text.equal, Text.hash);
+      tags = HashMap.HashMap<Text, Ref>(10, Text.equal, Text.hash);
+    };
+    repos.put(name, repo);
+    "Repository created: " # name;
   };
 
   public shared func commitCode(repoName: Text, branch: Text, fileList: [(Text, Text)], message: Text, author: Text): async Text {
     switch (repos.get(repoName)) {
-      case null "Error: Repository not found.";
+      case null return "Error: Repository not found.";
       case (?repo) {
         if (not canCommit(repo, author)) return "Error: No permission.";
         let parentHash = repo.branches.get(branch);
         let tree = HashMap.HashMap<Text, Blob>(10, Text.equal, Text.hash);
-        for ((f, c) in fileList.vals()) {
-          tree.put(f, c);
+        for (entry in fileList.vals()) {
+          let (f, c) = entry;
+          if (c == "") {
+            ignore tree.remove(f);
+          } else {
+            tree.put(f, c);
+          }
         };
         let newCommit: Commit = {
           tree = tree;
@@ -185,214 +176,189 @@ actor {
     }
   };
 
-  public shared func forkRepo(existing: Text, newName: Text, newOwner: Text): async Text {
-    switch (repos.get(existing)) {
-      case null "Error: Source repo not found.";
-      case (?sourceRepo) {
-        if (Option.isSome(repos.get(newName))) return "Error: Fork name exists.";
-        let forkedRepo: Repo = {
-          name = newName;
-          owner = newOwner;
-          branches = HashMap.HashMap<Text, Ref>(10, Text.equal, Text.hash);
-          commits = HashMap.HashMap<Text, Commit>(10, Text.equal, Text.hash);
-          collaborators = HashMap.HashMap<Text, Bool>(10, Text.equal, Text.hash);
-          tags = HashMap.HashMap<Text, Ref>(10, Text.equal, Text.hash);
-        };
-        for ((k, v) in sourceRepo.branches.entries()) { forkedRepo.branches.put(k, v); };
-        for ((k, v) in sourceRepo.commits.entries()) { forkedRepo.commits.put(k, v); };
-        for ((k, v) in sourceRepo.tags.entries()) { forkedRepo.tags.put(k, v); };
-        repos.put(newName, forkedRepo);
-        "Repository forked to: " # newName;
-      }
-    }
-  };
-
-  public shared func addCollaborator(repoName: Text, ownerName: Text, collaborator: Text): async Text {
+  public query func listFiles(repoName: Text): async [Text] {
     switch (repos.get(repoName)) {
-      case null "Error: Repo not found.";
+      case null return [];
       case (?repo) {
-        if (repo.owner != ownerName) return "Error: Only owner can add collaborators.";
-        repo.collaborators.put(collaborator, true);
-        "Collaborator added.";
-      }
-    }
-  };
-
-  public shared func removeCollaborator(repoName: Text, ownerName: Text, collaborator: Text): async Text {
-    switch (repos.get(repoName)) {
-      case null "Error: Repo not found.";
-      case (?repo) {
-        if (repo.owner != ownerName) return "Error: Only owner can remove collaborators.";
-        ignore repo.collaborators.remove(collaborator);
-        "Collaborator removed.";
-      }
-    }
-  };
-
-  public shared func addTag(repoName: Text, tag: Text, commitHash: Text, owner: Text): async Text {
-    switch (repos.get(repoName)) {
-      case null "Error: Repo not found.";
-      case (?repo) {
-        if (repo.owner != owner) return "Error: Only owner can add tags.";
-        if (Option.isSome(repo.commits.get(commitHash))) {
-          repo.tags.put(tag, commitHash);
-          "Tag '" # tag # "' added.";
-        } else {
-          "Error: Commit not found.";
-        }
-      }
-    }
-  };
-
-  public query func getTag(repoName: Text, tag: Text): async ?Text {
-    switch (repos.get(repoName)) {
-      case null null;
-      case (?repo) repo.tags.get(tag);
-    }
-  };
-
-  public shared func removeTag(repoName: Text, tag: Text, owner: Text): async Text {
-    switch (repos.get(repoName)) {
-      case null "Error: Repo not found.";
-      case (?repo) {
-        if (repo.owner != owner) return "Error: Only owner can remove tags.";
-        ignore repo.tags.remove(tag);
-        "Tag removed.";
-      }
-    }
-  };
-
-  public query func getCommitHistory(repoName: Text, startHash: Text): async [Text] {
-    switch (repos.get(repoName)) {
-      case null [];
-      case (?repo) {
-        var history: [Text] = [];
-        var current: ?Text = ?startHash;
-        while (current != null) {
-          switch (current) {
-            case (?hash) {
-              history := Array.append(history, [hash]);
-              switch (repo.commits.get(hash)) {
-                case (?c) current := c.parent;
-                case null current := null;
-              };
-            };
-            case null current := null;
-          };
-        };
-        history;
-      }
-    }
-  };
-
-  public shared func createBranch(repoName: Text, newBranch: Text, fromBranch: Text, author: Text): async Text {
-    switch (repos.get(repoName)) {
-      case null "Error: Repository not found.";
-      case (?repo) {
-        if (not canCommit(repo, author)) return "Error: No permission.";
-
-        switch (repo.branches.get(fromBranch)) {
-          case null "Error: Source branch does not exist.";
+        switch (repo.branches.get("master")) {
+          case null return [];
           case (?commitHash) {
-            if (Option.isSome(repo.branches.get(newBranch))) {
-              return "Error: Branch '" # newBranch # "' already exists.";
-            };
-
-            repo.branches.put(newBranch, commitHash);
-            "Branch '" # newBranch # "' created from '" # fromBranch # "'.";
+            switch (repo.commits.get(commitHash)) {
+              case null return [];
+              case (?commit) return Iter.toArray(commit.tree.keys());
+            }
           }
         }
       }
     }
   };
 
-  public shared func mergeBranches(repoName: Text, sourceBranch: Text, targetBranch: Text, author: Text): async Text {
+  public query func getRepoList(): async [Text] {
+    Iter.toArray(repos.keys());
+  };
+
+  public query func getCommitHistory(repoName: Text, branch: Text): async [Text] {
     switch (repos.get(repoName)) {
-      case null "Error: Repository not found.";
+      case null return [];
       case (?repo) {
-        if (not canCommit(repo, author)) return "Error: No permission.";
-
-        // Get latest commit hash from source and target branches
-        let sourceHashOpt = repo.branches.get(sourceBranch);
-        let targetHashOpt = repo.branches.get(targetBranch);
-
-        if (sourceHashOpt == null or targetHashOpt == null) {
-          return "Error: One or both branches do not exist.";
-        };
-
-        let sourceHash = Option.get(sourceHashOpt, "");
-        let targetHash = Option.get(targetHashOpt, "");
-
-        // For simplicity, use the target branch's latest tree as the tree for the merge commit
-        // More advanced merge logic (conflict detection) can be added later
-        let targetCommitOpt = repo.commits.get(targetHash);
-
-        switch (targetCommitOpt) {
-          case null return "Error: Target commit not found.";
-          case (?targetCommit) {
-            let mergeCommit: Commit = {
-              tree = targetCommit.tree;
-              message = "Merged branch " # sourceBranch # " into " # targetBranch;
-              parent = ?targetHash;
-              author = author;
-              timestamp = Time.now();
+        switch (repo.branches.get(branch)) {
+          case null return [];
+          case (?headHash) {
+            var history: [Text] = [];
+            var currentHash = ?headHash;
+            while (Option.isSome(currentHash)) {
+              switch (currentHash) {
+                case (?hash) {
+                  history := Array.append(history, [hash]);
+                  switch (repo.commits.get(hash)) {
+                    case null currentHash := null;
+                    case (?commit) currentHash := commit.parent;
+                  }
+                };
+                case null currentHash := null;
+              }
             };
-
-            let mergeHash = generateCommitHash(mergeCommit.message);
-            repo.commits.put(mergeHash, mergeCommit);
-            repo.branches.put(targetBranch, mergeHash);
-
-            "Merge successful. New commit hash: " # mergeHash;
+            return history;
           }
         }
       }
     }
   };
 
-  // === Upgrade Hooks ===
+  public query func getFileContent(repoName: Text, branch: Text, fileName: Text): async ?Text {
+    switch (repos.get(repoName)) {
+      case null return null;
+      case (?repo) {
+        switch (repo.branches.get(branch)) {
+          case null return null;
+          case (?commitHash) {
+            switch (repo.commits.get(commitHash)) {
+              case null return null;
+              case (?commit) return commit.tree.get(fileName);
+            }
+          }
+        }
+      }
+    }
+  };
+
+  public shared func addCollaborator(repoName: Text, userToAdd: Text): async Text {
+    switch (repos.get(repoName)) {
+      case null return "Error: Repository not found.";
+      case (?repo) {
+        repo.collaborators.put(userToAdd, true);
+        "Collaborator " # userToAdd # " added successfully.";
+      }
+    }
+  };
+
+  public shared func removeCollaborator(repoName: Text, userToRemove: Text): async Text {
+    switch (repos.get(repoName)) {
+      case null return "Error: Repository not found.";
+      case (?repo) {
+        switch (repo.collaborators.remove(userToRemove)) {
+          case null return "Error: Collaborator not found.";
+          case (?_) return "Collaborator removed: " # userToRemove;
+        }
+      }
+    }
+  };
+
+  public shared func createTag(repoName: Text, tagName: Text, branch: Text): async Text {
+    switch (repos.get(repoName)) {
+      case null return "Error: Repository not found.";
+      case (?repo) {
+        switch (repo.branches.get(branch)) {
+          case null return "Error: Branch not found.";
+          case (?commitHash) {
+            repo.tags.put(tagName, commitHash);
+            return "Tag " # tagName # " created.";
+          }
+        }
+      }
+    }
+  };
+
+  public query func listTags(repoName: Text): async [Text] {
+    switch (repos.get(repoName)) {
+      case null return [];
+      case (?repo) return Iter.toArray(repo.tags.keys());
+    }
+  };
+
+  public query func listCollaborators(repoName: Text): async [Text] {
+    switch (repos.get(repoName)) {
+      case null return [];
+      case (?repo) return Iter.toArray(repo.collaborators.keys());
+    }
+  };
+
+  public query func getCommitMessage(repoName: Text, commitHash: Text): async Text {
+    switch (repos.get(repoName)) {
+      case null return "Error: Repository not found.";
+      case (?repo) {
+        switch (repo.commits.get(commitHash)) {
+          case null return "Error: Commit not found.";
+          case (?commit) return commit.message;
+        }
+      }
+    }
+  };
+
+  public query func listBranches(repoName: Text): async [Text] {
+    switch (repos.get(repoName)) {
+      case null return [];
+      case (?repo) return Iter.toArray(repo.branches.keys());
+    }
+  };
+
+  public shared func createBranch(repoName: Text, newBranch: Text, sourceBranch: Text, caller: Text): async Text {
+    switch (repos.get(repoName)) {
+      case null return "Error: Repository not found.";
+      case (?repo) {
+        if (repo.owner != caller) return "Error: Only owner can create branches.";
+        switch (repo.branches.get(sourceBranch)) {
+          case null return "Error: Source branch not found.";
+          case (?commitHash) {
+            repo.branches.put(newBranch, commitHash);
+            return "Branch " # newBranch # " created from " # sourceBranch;
+          }
+        }
+      }
+    }
+  };
+
+  public shared func mergeBranches(repoName: Text, sourceBranch: Text, targetBranch: Text, caller: Text): async Text {
+    switch (repos.get(repoName)) {
+      case null return "Error: Repository not found.";
+      case (?repo) {
+        if (not canCommit(repo, caller)) return "Error: No permission.";
+        switch (repo.branches.get(sourceBranch)) {
+          case null return "Error: Source branch not found.";
+          case (?sourceHash) {
+            repo.branches.put(targetBranch, sourceHash);
+            return "Branch " # sourceBranch # " merged into " # targetBranch;
+          }
+        }
+      }
+    }
+  };
 
   system func preupgrade() {
     savedRepos := Array.map<(Text, Repo), (Text, RepoSerializable)>(
       Iter.toArray(repos.entries()),
-      func(entry) {
-        let (name, repo) = entry;
-        (name, serializeRepo(repo));
+      func((name, repo)) : (Text, RepoSerializable) {
+        (name, serializeRepo(repo))
       }
     );
   };
 
   system func postupgrade() {
     repos := HashMap.HashMap<Text, Repo>(10, Text.equal, Text.hash);
-    for ((name, serRepo) in savedRepos.vals()) {
+    for (entry in savedRepos.vals()) {
+      let (name, serRepo) = entry;
       repos.put(name, deserializeRepo(serRepo));
     }
   };
-
-  public query func listFiles(repoName: Text): async [Text] {
-  switch (repos.get(repoName)) {
-    case null return [];
-    case (?repo) {
-      var fileNames: [Text] = [];
-      let head = repo.branches.get("master");
-      switch (head) {
-        case null return [];
-        case (?commitHash) {
-          switch (repo.commits.get(commitHash)) {
-            case null return [];
-            case (?commit) {
-              fileNames := Iter.toArray(commit.tree.keys());
-            }
-          }
-        }
-      };
-      fileNames;
-    }
-  }
-  };
-public query func getRepoList(): async [Text] {
-  Iter.toArray(repos.keys());
-};
-
-
 
 };

@@ -1,5 +1,5 @@
 import { Actor, HttpAgent } from "@dfinity/agent";
-import { idlFactory } from "$lib/ic/declarations/dgit_repo_backend/dgit-repo-backend.did.js";
+import { idlFactory } from "@/lib/ic/declarations/dgit_repo_backend/dgit-repo-backend.did.js";
 
 const agent = new HttpAgent({ host: "http://localhost:4943" });
 // If using local development, fetch root key:
