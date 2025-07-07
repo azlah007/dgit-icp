@@ -1,8 +1,22 @@
 import { HttpAgent, Actor } from "@dfinity/agent";
-import { idlFactory as dgit_idl, canisterId as dgit_canisterId } from "../../declarations/dgit_repo";
+import { idlFactory as dgit_idl } from "../../../declarations/dgit_repo";
 
-const agent = new HttpAgent();
-const dgit = Actor.createActor(dgit_idl, { agent, canisterId: dgit_canisterId });
+let dgit;
 
-// Expose to window so all components can use it
-window.dgit = dgit;
+export const initAgent = async () => {
+  if (window.ic?.plug) {
+    const connected = await window.ic.plug.requestConnect();
+    if (connected) {
+      const agent = new HttpAgent({ host: "https://icp0.io" });
+      dgit = Actor.createActor(dgit_idl, {
+        agent,
+        canisterId: process.env.CANISTER_ID_DGIT_REPO
+      });
+      return true;
+    }
+  }
+  alert("Please install Plug wallet and connect.");
+  return false;
+};
+
+export { dgit };

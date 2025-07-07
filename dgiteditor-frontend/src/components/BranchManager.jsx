@@ -1,31 +1,71 @@
 import React, { useEffect, useState } from 'react';
+import { dgit } from './agent';
 
-export default function BranchManager({ repoName }) {
+export default function BranchManager({ repoName, branch, setBranch }) {
   const [branches, setBranches] = useState([]);
   const [newBranch, setNewBranch] = useState('');
   const [sourceBranch, setSourceBranch] = useState('');
+  const [statusMsg, setStatusMsg] = useState('');
 
   useEffect(() => {
-    fetchBranches();
-  }, []);
+    if (repoName) {
+      fetchBranches();
+    }
+  }, [repoName]);
 
   const fetchBranches = async () => {
-    const branches = await window.dgit.listBranches(repoName);
-    setBranches(branches);
+    setStatusMsg('');
+    try {
+      const res = await dgit.listBranches(repoName);
+      setBranches(res);
+      if (res.length === 0) {
+        setStatusMsg('No branches found.');
+      }
+    } catch (err) {
+      console.error('Error fetching branches:', err);
+      setStatusMsg('Error fetching branches.');
+    }
   };
 
   const createBranch = async () => {
-    const res = await window.dgit.createBranch(repoName, newBranch, sourceBranch, 'owner');
-    alert(res);
-    fetchBranches();
+    if (!newBranch.trim() || !sourceBranch.trim()) {
+      alert('Please enter both new branch name and source branch.');
+      return;
+    }
+    try {
+      const res = await dgit.createBranch(repoName, newBranch.trim(), sourceBranch.trim(), 'owner');
+      alert(res);
+      setNewBranch('');
+      setSourceBranch('');
+      fetchBranches();
+    } catch (err) {
+      console.error('Error creating branch:', err);
+      alert('Failed to create branch.');
+    }
   };
 
   return (
     <div>
       <h3>Branches</h3>
-      <ul>
-        {branches.map((b) => <li key={b}>{b}</li>)}
-      </ul>
+
+      {statusMsg && <p>{statusMsg}</p>}
+
+      {branches.length === 0 ? (
+        <p>No branches available.</p>
+      ) : (
+        <ul>
+          {branches.map((b) => (
+            <li key={b}>
+              {b} 
+              {b === branch ? ' (Active)' : (
+                <button onClick={() => setBranch(b)}>Switch</button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h4>Create New Branch</h4>
       <input 
         type="text" 
         placeholder="New branch name" 
