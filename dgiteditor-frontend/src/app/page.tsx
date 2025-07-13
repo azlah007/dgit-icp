@@ -330,7 +330,7 @@ export default function Home() {
           <input
             type="text"
             placeholder="New branch"
-            className="flex-1 p-1 rounded text-black"
+            className="flex-1 p-1 rounded text-white bg-gray-800"
             value={newBranchName}
             onChange={(e) => setNewBranchName(e.target.value)}
           />
@@ -377,7 +377,7 @@ export default function Home() {
             <input
               type="text"
               placeholder="New tag"
-              className="flex-1 p-1 rounded text-black"
+              className="flex-1 p-1 rounded text-white bg-gray-800"
               value={newTag}
               onChange={(e) => setNewTag(e.target.value)}
             />
@@ -404,7 +404,7 @@ export default function Home() {
             <input
               type="text"
               placeholder="Add collaborator"
-              className="flex-1 p-1 rounded text-black"
+              className="flex-1 p-1 rounded text-white bg-gray-800"
               value={newCollaborator}
               onChange={(e) => setNewCollaborator(e.target.value)}
             />
@@ -417,7 +417,7 @@ export default function Home() {
 
       {/* Editor */}
       <div className="flex-1 bg-gray-100 p-4 flex flex-col">
-        <h2 className="text-2xl font-semibold mb-4">
+        <h2 className="text-2xl font-semibold mb-4 text-black">
           {selectedFile ? `Editing: ${selectedFile}` : "Select a file to start editing"}
         </h2>
 
@@ -438,7 +438,7 @@ export default function Home() {
           <input
             type="text"
             placeholder="Commit message"
-            className="flex-1 p-2 border border-gray-300 rounded"
+            className="flex-1 p-2 border border-gray-300 rounded text-black"
             value={commitMessage}
             onChange={(e) => setCommitMessage(e.target.value)}
           />
