@@ -1,0 +1,8 @@
+{
+  "repoName": "testrepo",
+  "currentBranch": "master",
+  "branches": [
+    "master",
+    "dev"
+  ]
+}

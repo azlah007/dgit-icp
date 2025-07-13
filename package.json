@@ -9,7 +9,9 @@
     "prebuild": "npm run prebuild --workspaces --if-present",
     "pretest": "npm run prebuild --workspaces --if-present",
     "start": "npm start --workspaces --if-present",
-    "test": "npm test --workspaces --if-present"
+    "test": "npm test --workspaces --if-present",
+    "dev": "next dev",
+    "test:e2e": "playwright test"
   },
   "type": "module",
   "workspaces": [
@@ -23,7 +25,9 @@
   "version": "1.0.0",
   "description": "Welcome to your new `dgit-repo` project and to the Internet Computer development community. By default, creating a new project adds this README and some template files to your project directory. You can edit these template files to customize your project and to include your own code to speed up the development cycle.",
   "main": "index.js",
-  "devDependencies": {},
+  "devDependencies": {
+    "@playwright/test": "^1.54.1"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/azlah007/dgit-icp.git"

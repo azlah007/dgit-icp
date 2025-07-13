@@ -1,13 +1,16 @@
-import { Actor, HttpAgent } from "@dfinity/agent";
+// 🔧 FIXED: src/lib/ic/actors/dgit_repo_backend.ts
+
+import { Actor } from "@dfinity/agent";
 import { idlFactory } from "@/lib/ic/declarations/dgit_repo_backend/dgit-repo-backend.did.js";
+import { agent } from "@/lib/ic/agent";
+import canisterIds from "@/lib/ic/canister_ids";
 
-const agent = new HttpAgent({ host: "http://localhost:4943" });
-// If using local development, fetch root key:
-agent.fetchRootKey().catch(() => {
-  console.warn("Unable to fetch root key, running in production?");
-});
+// Canister ID for current network
+const canisterId = canisterIds["dgit-repo-backend"].local;
 
-export const dgitRepoBackend = Actor.createActor(idlFactory, {
-  agent,
-  canisterId: "uxrrr-q7777-77774-qaaaq-cai",
-});
+export const createDgitRepoBackendActor = () => {
+  return Actor.createActor(idlFactory, {
+    agent,
+    canisterId,
+  });
+};

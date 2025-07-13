@@ -1,0 +1,21 @@
+{
+  "master": [],
+  "dev": [
+    {
+      "id": "jgo7syo",
+      "message": "Initial commit",
+      "timestamp": "2025-07-11T16:18:54.526Z",
+      "files": {
+        "hello.js": "console.log('Hello, dgit!');\n"
+      }
+    },
+    {
+      "id": "9o5x1q7",
+      "message": "Dev branch changes",
+      "timestamp": "2025-07-11T16:18:55.945Z",
+      "files": {
+        "hello.js": "console.log('Hello, dgit!');\nconsole.log('Changed in dev branch');\n"
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+service : {
+  createRepo : (text, text) -> (text);
+  commitCode : (text, text, vec record { text; text }, text, text) -> (text);
+  listFiles : (text, text) -> (vec text) query;
+  getFileContent : (text, text, text) -> (opt text) query;
+  getCommitHistory : (text, text) -> (vec text) query;
+  getRepoList : () -> (vec text) query;
+  getCommitMessage : (text, text) -> (text) query;
+  listBranches : (text) -> (vec text) query;
+  listTags : (text) -> (vec text) query;
+  listCollaborators : (text) -> (vec text) query;
+  createBranch : (text, text, text, text) -> (text);
+  mergeBranches : (text, text, text, text) -> (text);
+  addCollaborator : (text, text) -> (text);
+  removeCollaborator : (text, text) -> (text);
+  createTag : (text, text, text) -> (text);
+}

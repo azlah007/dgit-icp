@@ -53,27 +53,33 @@ export default function EditorPage({ repoName }) {
   };
 
   const saveChanges = async () => {
-    if (!principal || !currentFile) {
-      alert('Missing Plug connection or no file selected.');
-      return;
-    }
+  if (!principal || !currentFile) {
+    alert('Missing Plug connection or no file selected.');
+    return;
+  }
 
-    const message = prompt("Enter commit message:");
-    if (!message) {
-      setStatusMsg('Commit cancelled.');
-      return;
-    }
+  const message = prompt("Enter commit message:");
+  if (!message) {
+    setStatusMsg('Commit cancelled.');
+    return;
+  }
 
-    setStatusMsg('Saving...');
-    try {
-      const fileList = [[currentFile, fileContent]];
-      const res = await dgit.commitCode(repoName, branch, fileList, message, principal.toString());
-      setStatusMsg(res);
-    } catch (err) {
-      console.error('Error saving changes:', err);
-      setStatusMsg('Error saving changes.');
-    }
-  };
+  setStatusMsg('Saving...');
+  try {
+    const fileList = [[currentFile, fileContent]];
+    const res = await dgit.commitCode(repoName, branch, fileList, message, principal.toString());
+    setStatusMsg(res);
+    console.log('After commit:', { currentFile, fileContent });
+
+    // 🔁 Reload the file content from backend
+    const newContent = await dgit.getFileContent(repoName, branch, currentFile);
+    setFileContent(newContent ?? '');
+  } catch (err) {
+    console.error('Error saving changes:', err);
+    setStatusMsg('Error saving changes.');
+  }
+};
+
 
   return (
     <div>
@@ -100,12 +106,14 @@ export default function EditorPage({ repoName }) {
         <div>
           <h3>Editing: {currentFile}</h3>
           <Editor
+            key={currentFile} // 🧠 force full re-render when switching file
             height="400px"
             defaultLanguage="javascript"
             value={fileContent}
             onChange={(value) => setFileContent(value ?? '')}
             theme="vs-dark"
           />
+
           <br />
           <button onClick={saveChanges}>💾 Save Changes</button>
           <p>{statusMsg}</p>

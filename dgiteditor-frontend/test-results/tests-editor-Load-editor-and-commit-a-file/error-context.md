@@ -1,0 +1,41 @@
+# Page snapshot
+
+```yaml
+- heading "dGIT Editor" [level=1]
+- text: "Branch:"
+- combobox "Branch:"
+- textbox "New branch"
+- button "Add"
+- heading "Files" [level=2]
+- heading "File Tree" [level=2]
+- list
+- heading "Commit History" [level=2]
+- list
+- heading "Tags" [level=2]
+- list
+- textbox "New tag"
+- button "Add"
+- heading "Collaborators" [level=2]
+- list
+- textbox "Add collaborator"
+- button "Add"
+- heading "Select a file to start editing" [level=2]
+- code:
+  - textbox "Editor content"
+- textbox "Commit message"
+- button "Commit"
+- button "Delete File"
+- combobox:
+  - option "Select source branch" [selected]
+- combobox:
+  - option "Select target branch" [selected]
+- button "Merge"
+- alert
+- button "Open Next.js Dev Tools":
+  - img
+- button "Open issues overlay": 1 Issue
+- button "Collapse issues badge":
+  - img
+- alert
+- alert
+```

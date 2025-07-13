@@ -1,24 +1,32 @@
-import React, { useEffect, useState } from 'react';
-import { dgit } from '../agent';
+"use client";
 
-export default function FileTree({ repoName, setCurrentFile, setFileContent, branch }) {
+import React, { useEffect, useState } from "react";
+
+export default function FileTree({
+  dgitRepoBackend,
+  repoName,
+  setCurrentFile,
+  setFileContent,
+  branch,
+  currentFile,
+}) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [newFileName, setNewFileName] = useState('');
 
   useEffect(() => {
-    if (repoName) {
+    if (repoName && branch && dgitRepoBackend) {
       fetchFiles();
     }
-  }, [repoName, branch]);
+  }, [repoName, branch, dgitRepoBackend]);
 
   const fetchFiles = async () => {
     setLoading(true);
     try {
-      const res = await dgit.listFiles(repoName);
-      setFiles(res);
+      const res = await dgitRepoBackend.listFiles(repoName, branch);
+      console.log("📁 [FileTree] Fetched files:", res);
+      setFiles(Array.isArray(res) ? res : []);
     } catch (err) {
-      console.error('Error fetching files:', err);
+      console.error("Error fetching files:", err);
       setFiles([]);
     }
     setLoading(false);
@@ -26,12 +34,21 @@ export default function FileTree({ repoName, setCurrentFile, setFileContent, bra
 
   const openFile = async (fileName) => {
     try {
-      const content = await dgit.getFileContent(repoName, branch, fileName);
-      setCurrentFile(fileName);
-      setFileContent(content ?? '');
+      const content = await dgitRepoBackend.getFileContent(repoName, branch, fileName);
+      console.log("📄 [FileTree] Opened content for", fileName, ":", content);
+
+      if (Array.isArray(content)) {
+        setCurrentFile(fileName);
+        setFileContent(content[0] || "");
+      } else if (typeof content === "string") {
+        setCurrentFile(fileName);
+        setFileContent(content);
+      } else {
+        setFileContent("// File empty or not found");
+      }
     } catch (err) {
-      console.error('Error opening file:', err);
-      setFileContent('');
+      console.error("Error opening file:", err);
+      setFileContent("// Error opening file.");
     }
   };
 
@@ -40,56 +57,28 @@ export default function FileTree({ repoName, setCurrentFile, setFileContent, bra
     if (!confirmDelete) return;
 
     try {
-      const res = await dgit.deleteFile(repoName, branch, fileName);
-      alert(res);
-      if (fileName === currentFile) {
-        setCurrentFile(null);
-        setFileContent('');
-      }
-      fetchFiles();
-    } catch (err) {
-      console.error('Error deleting file:', err);
-      alert('Failed to delete file.');
-    }
-  };
-
-  const createFile = async () => {
-    if (!newFileName) {
-      alert('Enter a valid file name.');
-      return;
-    }
-
-    try {
-      const res = await dgit.commitCode(
+      await dgitRepoBackend.commitCode(
         repoName,
         branch,
-        [[newFileName, '']], // Create empty file
-        'Created new file',
-        'system'
+        [[fileName, ""]],
+        `Deleted file ${fileName}`,
+        "system"
       );
-      alert(res);
-      setNewFileName('');
-      fetchFiles();
+
+      if (fileName === currentFile) {
+        setCurrentFile(null);
+        setFileContent("");
+      }
+      await fetchFiles();
     } catch (err) {
-      console.error('Error creating file:', err);
-      alert('Failed to create file.');
+      console.error("Error deleting file:", err);
+      alert("Failed to delete file.");
     }
   };
 
   return (
     <div>
-      <h3>File Tree</h3>
-
-      <div style={{ marginBottom: '10px' }}>
-        <input
-          type="text"
-          placeholder="New file name"
-          value={newFileName}
-          onChange={(e) => setNewFileName(e.target.value)}
-          style={{ marginRight: '5px' }}
-        />
-        <button onClick={createFile}>➕ Create</button>
-      </div>
+      <h3>📁 File Tree</h3>
 
       {loading ? (
         <p>Loading files...</p>
@@ -100,8 +89,12 @@ export default function FileTree({ repoName, setCurrentFile, setFileContent, bra
           {files.map((f) => (
             <li key={f}>
               📄 {f}
-              <button onClick={() => openFile(f)} style={{ marginLeft: '5px' }}>Open</button>
-              <button onClick={() => deleteFile(f)} style={{ marginLeft: '5px' }}>🗑️ Delete</button>
+              <button onClick={() => openFile(f)} style={{ marginLeft: "5px" }}>
+                Open
+              </button>
+              <button onClick={() => deleteFile(f)} style={{ marginLeft: "5px" }}>
+                🗑️ Delete
+              </button>
             </li>
           ))}
         </ul>

@@ -1,5 +1,5 @@
 import { HttpAgent, Actor } from "@dfinity/agent";
-import { idlFactory as dgit_idl } from "../../../declarations/dgit_repo";
+import { idlFactory as dgit_idl } from "@/lib/ic/declarations/dgit_repo_backend/dgit-repo-backend.did.js";
 
 let dgit;
 
