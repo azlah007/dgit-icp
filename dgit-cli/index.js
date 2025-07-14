@@ -53,7 +53,7 @@ async function cloneRepo(repoName) {
   console.log(`⬇️ Cloning repo '${repoName}' from canister...`);
 
   try {
-    const files = await dgit.listFiles(repoName);
+      const files = await dgit.listFiles(repoName, 'master');  // ✅ FIXED LINE
     if (!files?.length) return console.error(`❌ No files found for repo '${repoName}'.`);
 
     fs.mkdirSync(DGIT_DIR);
@@ -227,7 +227,7 @@ async function pullChanges() {
 
   console.log(`⬇️ Pulling latest files from canister for '${config.currentBranch}'...`);
   try {
-    const files = await dgit.listFiles(config.repoName);
+    const files = await dgit.listFiles(config.repoName, config.currentBranch);  // ✅ FIXED LINE
     if (!files?.length) return console.log('ℹ️ No files found on remote.');
 
     for (const f of files) {
@@ -235,6 +235,7 @@ async function pullChanges() {
       fs.writeFileSync(path.join(process.cwd(), f), content);
       console.log(`✅ Pulled file: ${f}`);
     }
+
     writeCommits({});
     writeStaged([]);
     console.log('✅ Pull complete.');
@@ -242,6 +243,7 @@ async function pullChanges() {
     console.error('❌ Pull failed:', err);
   }
 }
+
 
 function showHelp() {
   console.log(`

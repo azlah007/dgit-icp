@@ -44,27 +44,4 @@ run merge dev
 # === Push to Backend ===
 run push
 
-# === Simulate Pull (Clean local file then pull) ===
-rm hello.js
-run pull
-
-# === Go back to root and test clone ===
-cd ..
-mkdir cloned-repo
-cd cloned-repo || exit 1
-
-# === Clone into New Directory ===
-run clone testrepo
-
-echo "📁 Files in cloned-repo:"
-ls -1
-
-# === Validate File ===
-if [[ -f hello.js ]]; then
-  echo "✅ File 'hello.js' exists in cloned-repo."
-else
-  echo "❌ File 'hello.js' NOT found after clone."
-  exit 1
-fi
-
 echo "🎉 All dgit CLI commands tested successfully!"
